@@ -29,21 +29,47 @@
   const teacherLoginMsg = $('#teacher-login-msg');
   const teacherControls = $('#teacher-controls');
 
-  const createSessionBtn = $('#create-session-btn');
-  const sessionNameInput = $('#session-name');
-  const sessionInfo = $('#session-info');
+  const listsEl = $('#lists');
+  const newListBtn = $('#new-list-btn');
+  const refreshListsBtn = $('#refresh-lists-btn');
+  const listEditor = $('#list-editor');
+  const listNameInput = $('#list-name');
+  const questionsContainer = $('#questions-container');
+  const addQuestionBtn = $('#add-question-btn');
+  const saveListBtn = $('#save-list-btn');
+
   const presentPanel = $('#present-panel');
   const presentSessionId = $('#present-session-id');
   const studentJoinLink = $('#student-join-link');
+  const showQrBtn = $('#show-qr-btn');
+  const beginPresentationBtn = $('#begin-presentation-btn');
 
-  const qText = $('#q-text');
-  const qChoices = $('#q-choices');
-  const setQuestionBtn = $('#set-question-btn');
+  const presView = $('#presentation');
+  const presPrev = $('#pres-prev');
+  const presNext = $('#pres-next');
+  const presIndex = $('#pres-index');
+  const presTotal = $('#pres-total');
+  const presQuestion = $('#pres-question');
+  const presChoices = $('#pres-choices');
   const revealBtn = $('#reveal-btn');
   const sumStudents = $('#sum-students');
   const sumAnswers = $('#sum-answers');
 
-  let teacherState = { code: '', sessionId: null, ws: null };
+  const qrModal = $('#qr-modal');
+  const qrClose = $('#qr-close');
+  const qrContainer = $('#qr');
+  const qrLink = $('#qr-link');
+
+  let qrInstance = null;
+
+  let teacherState = {
+    code: '',
+    sessionId: null,
+    ws: null,
+    lists: [],
+    currentList: null, // { id, name, questions }
+    presIndex: 0,
+  };
 
   teacherLoginBtn.addEventListener('click', async () => {
     teacherLoginMsg.textContent = '';
@@ -59,38 +85,213 @@
       teacherControls.classList.remove('hidden');
       $('#teacher-login').classList.add('hidden');
       teacherState.code = code;
+      await loadLists();
     } catch(e){
       teacherLoginMsg.textContent = e.message || 'Login failed';
     }
   });
 
-  createSessionBtn.addEventListener('click', async () => {
-    sessionInfo.textContent = '';
+  async function loadLists(){
+    listsEl.innerHTML = '<li class="msg">Loading...</li>';
     try {
+      const res = await fetch('/api/question-lists', { headers: { 'x-access-code': teacherState.code } });
+      if (!res.ok) throw new Error('Failed to load lists');
+      const data = await res.json();
+      teacherState.lists = data.items || [];
+      renderLists();
+    } catch(e){
+      listsEl.innerHTML = `<li class="msg">${e.message}</li>`;
+    }
+  }
+
+  function renderLists(){
+    listsEl.innerHTML = '';
+    if (!teacherState.lists.length){
+      const li = document.createElement('li');
+      li.className = 'msg';
+      li.textContent = 'No lists yet. Create one!';
+      listsEl.appendChild(li);
+      return;
+    }
+    teacherState.lists.forEach(item => {
+      const li = document.createElement('li');
+      li.className = 'list-item';
+      const btnEdit = document.createElement('button');
+      btnEdit.className = 'secondary';
+      btnEdit.textContent = 'Edit';
+      btnEdit.addEventListener('click', () => openListEditor(item.id));
+      const btnStart = document.createElement('button');
+      btnStart.textContent = 'Start Class';
+      btnStart.addEventListener('click', async () => {
+        await startSessionFromList(item.id);
+      });
+      const meta = document.createElement('div');
+      meta.className = 'list-meta';
+      meta.innerHTML = `<strong>${item.name}</strong><br/><small>${new Date(item.updatedAt||Date.now()).toLocaleString()}</small>`;
+      li.appendChild(meta);
+      const actions = document.createElement('div');
+      actions.className = 'list-actions';
+      actions.appendChild(btnEdit);
+      actions.appendChild(btnStart);
+      li.appendChild(actions);
+      listsEl.appendChild(li);
+    });
+  }
+
+  newListBtn.addEventListener('click', () => {
+    teacherState.currentList = { id: null, name: '', questions: [] };
+    listNameInput.value = '';
+    questionsContainer.innerHTML = '';
+    addQuestionBlock();
+    listEditor.classList.remove('hidden');
+  });
+
+  refreshListsBtn.addEventListener('click', loadLists);
+
+  async function openListEditor(id){
+    try {
+      const res = await fetch(`/api/question-lists/${encodeURIComponent(id)}`, { headers: { 'x-access-code': teacherState.code } });
+      if (!res.ok) throw new Error('Failed to load list');
+      const data = await res.json();
+      teacherState.currentList = data;
+      listNameInput.value = data.name || '';
+      questionsContainer.innerHTML = '';
+      (data.questions || []).forEach(q => addQuestionBlock(q));
+      listEditor.classList.remove('hidden');
+    } catch(e){
+      alert(e.message || 'Error');
+    }
+  }
+
+  function addQuestionBlock(q = { text: '', choices: [] }){
+    const wrap = document.createElement('div');
+    wrap.className = 'q-block';
+    const labelQ = document.createElement('label');
+    labelQ.textContent = 'Question';
+    const inputQ = document.createElement('input');
+    inputQ.type = 'text';
+    inputQ.value = q.text || '';
+    const labelC = document.createElement('label');
+    labelC.textContent = 'Choices (one per line)';
+    const ta = document.createElement('textarea');
+    ta.rows = 4;
+    ta.value = (q.choices || []).join('\n');
+    const del = document.createElement('button');
+    del.className = 'secondary';
+    del.textContent = 'Remove';
+    del.addEventListener('click', () => wrap.remove());
+    wrap.appendChild(labelQ);
+    wrap.appendChild(inputQ);
+    wrap.appendChild(labelC);
+    wrap.appendChild(ta);
+    wrap.appendChild(del);
+    questionsContainer.appendChild(wrap);
+  }
+
+  addQuestionBtn.addEventListener('click', () => addQuestionBlock());
+
+  saveListBtn.addEventListener('click', async () => {
+    const name = listNameInput.value.trim();
+    const questions = Array.from(questionsContainer.querySelectorAll('.q-block')).map(block => {
+      const inputs = block.querySelectorAll('input, textarea');
+      const text = inputs[0].value.trim();
+      const choices = inputs[1].value.split('\n').map(s => s.trim()).filter(Boolean);
+      return { text, choices };
+    }).filter(q => q.text && q.choices.length >= 2);
+    if (!name || !questions.length){
+      alert('Please provide a list name and at least one question with two choices.');
+      return;
+    }
+    try {
+      const payload = { id: teacherState.currentList?.id || undefined, name, questions };
+      const res = await fetch('/api/question-lists', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-access-code': teacherState.code },
+        body: JSON.stringify(payload)
+      });
+      if (!res.ok) throw new Error('Failed to save list');
+      const data = await res.json();
+      teacherState.currentList = { id: data.id, name, questions };
+      await loadLists();
+      alert('Saved.');
+    } catch(e){
+      alert(e.message || 'Error saving list');
+    }
+  });
+
+  async function startSessionFromList(listId){
+    try {
+      // load full list
+      const resList = await fetch(`/api/question-lists/${encodeURIComponent(listId)}`, { headers: { 'x-access-code': teacherState.code } });
+      if (!resList.ok) throw new Error('Failed to load list');
+      const list = await resList.json();
+      teacherState.currentList = list;
+      // create session
       const res = await fetch('/api/session', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-access-code': teacherState.code,
-        },
-        body: JSON.stringify({ name: sessionNameInput.value.trim() || undefined })
+        headers: { 'Content-Type': 'application/json', 'x-access-code': teacherState.code },
+        body: JSON.stringify({ name: list.name })
       });
       if (!res.ok) throw new Error('Failed to create session');
       const data = await res.json();
       teacherState.sessionId = data.id;
-      sessionInfo.textContent = `Session created: ${data.id}`;
       presentSessionId.textContent = data.id;
       const joinUrl = `${location.origin}/?session=${encodeURIComponent(data.id)}&as=student`;
       studentJoinLink.href = joinUrl;
       studentJoinLink.textContent = joinUrl;
       presentPanel.classList.remove('hidden');
-
-      // Open WS and join as teacher
-      teacherOpenWS();
     } catch(e){
-      sessionInfo.textContent = e.message || 'Error creating session';
+      alert(e.message || 'Could not start session');
     }
+  }
+
+  showQrBtn?.addEventListener('click', () => {
+    const url = studentJoinLink.href;
+    if (!url) return;
+    qrLink.href = url;
+    qrLink.textContent = url;
+    qrModal.classList.remove('hidden');
+    if (qrInstance) { qrContainer.innerHTML = ''; qrInstance = null; }
+    qrInstance = new QRCode(qrContainer, { text: url, width: 256, height: 256 });
   });
+
+  qrClose?.addEventListener('click', () => {
+    qrModal.classList.add('hidden');
+  });
+
+  beginPresentationBtn?.addEventListener('click', () => {
+    if (!teacherState.sessionId || !teacherState.currentList) return;
+    teacherState.presIndex = 0;
+    presTotal.textContent = String(teacherState.currentList.questions.length);
+    presView.classList.remove('hidden');
+    teacherOpenWS();
+  });
+
+  presPrev.addEventListener('click', () => moveSlide(-1));
+  presNext.addEventListener('click', () => moveSlide(1));
+
+  function moveSlide(delta){
+    if (!teacherState.currentList) return;
+    const len = teacherState.currentList.questions.length;
+    teacherState.presIndex = Math.max(0, Math.min(len - 1, teacherState.presIndex + delta));
+    pushCurrentQuestion();
+  }
+
+  function pushCurrentQuestion(){
+    const q = teacherState.currentList.questions[teacherState.presIndex];
+    presIndex.textContent = String(teacherState.presIndex + 1);
+    presQuestion.textContent = q.text;
+    presChoices.innerHTML = '';
+    q.choices.forEach((c, idx) => {
+      const div = document.createElement('div');
+      div.className = 'pres-choice';
+      div.textContent = c;
+      presChoices.appendChild(div);
+    });
+    if (teacherState.ws && teacherState.ws.readyState === WebSocket.OPEN){
+      teacherState.ws.send(JSON.stringify({ type: 'setQuestion', sessionId: teacherState.sessionId, question: { text: q.text, choices: q.choices, correct: [] } }));
+    }
+  }
 
   function teacherOpenWS(){
     if (!teacherState.sessionId) return;
@@ -99,6 +300,8 @@
     teacherState.ws = ws;
     ws.onopen = () => {
       ws.send(JSON.stringify({ type: 'join', role: 'teacher', sessionId: teacherState.sessionId }));
+      // After join, push current slide
+      if (teacherState.currentList) pushCurrentQuestion();
     };
     ws.onmessage = (ev) => handleTeacherMessage(JSON.parse(ev.data));
   }
@@ -106,36 +309,24 @@
   function handleTeacherMessage(msg){
     if (msg.type === 'summary'){
       sumStudents.textContent = msg.studentCount ?? 0;
-      renderAnswerCounts(msg.answerCounts || [], qText.value.trim(), getChoiceArray());
+      renderAnswerCounts(msg.answerCounts || [], []);
     }
     if (msg.type === 'answerUpdate' || msg.type === 'reveal'){
-      renderAnswerCounts(msg.answerCounts || [], qText.value.trim(), getChoiceArray());
+      renderAnswerCounts(msg.answerCounts || [], []);
     }
   }
-
-  function getChoiceArray(){
-    return qChoices.value.split('\n').map(s => s.trim()).filter(Boolean);
-  }
-
-  setQuestionBtn.addEventListener('click', () => {
-    if (!teacherState.ws || teacherState.ws.readyState !== WebSocket.OPEN) return;
-    const choices = getChoiceArray();
-    const question = { text: qText.value.trim(), choices, correct: [] };
-    teacherState.ws.send(JSON.stringify({ type: 'setQuestion', sessionId: teacherState.sessionId, question }));
-  });
 
   revealBtn.addEventListener('click', () => {
     if (!teacherState.ws || teacherState.ws.readyState !== WebSocket.OPEN) return;
     teacherState.ws.send(JSON.stringify({ type: 'reveal', sessionId: teacherState.sessionId }));
   });
 
-  function renderAnswerCounts(counts, qTextLocal, choices){
+  function renderAnswerCounts(counts){
     sumAnswers.innerHTML = '';
-    for (let i = 0; i < Math.max(counts.length, choices.length); i++){
+    for (let i = 0; i < counts.length; i++){
       const li = document.createElement('li');
-      const choiceLabel = choices[i] || `Choice ${i+1}`;
       const count = counts[i] ?? 0;
-      li.textContent = `${choiceLabel}: ${count}`;
+      li.textContent = `Choice ${i+1}: ${count}`;
       sumAnswers.appendChild(li);
     }
   }
@@ -234,6 +425,10 @@
   const as = params.get('as');
   if (as === 'student'){
     setTab('student');
-    if (preSession){ studentSessionInput.value = preSession; }
+    if (preSession){
+      studentSessionInput.value = preSession;
+      // auto-join
+      studentJoin();
+    }
   }
 })();

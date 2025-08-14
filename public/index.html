@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>YouClicker</title>
   <link rel="stylesheet" href="/styles.css" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js" integrity="sha512-Mq0x0A9n3qk2Vw4cTgE+g9b1eZbT6QCEk0nJf7k9h7m2c9k5c5m1Q9H9qVnCjW3pJg3gqgJ4rK2Z0Q0FQ8NQ3A==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
 </head>
 <body>
   <header>
@@ -30,33 +31,50 @@
         </div>
 
         <div id="teacher-controls" class="panel hidden">
-          <h2>Create Session</h2>
-          <label>Session Name</label>
-          <input id="session-name" type="text" placeholder="e.g. Algebra Period 2" />
-          <button id="create-session-btn">Create Session</button>
-          <p id="session-info" class="msg"></p>
+          <h2>Question Lists</h2>
+          <div class="toolbar">
+            <button id="new-list-btn" class="secondary">New List</button>
+            <button id="refresh-lists-btn" class="secondary">Refresh</button>
+          </div>
+          <ul id="lists" class="list"></ul>
+
+          <div id="list-editor" class="panel hidden">
+            <h3>Edit List</h3>
+            <label>List Name</label>
+            <input id="list-name" type="text" placeholder="e.g. Algebra - Quiz 1" />
+            <div id="questions-container"></div>
+            <div class="toolbar">
+              <button id="add-question-btn" class="secondary">Add Question</button>
+              <button id="save-list-btn">Save List</button>
+            </div>
+          </div>
 
           <div id="present-panel" class="hidden">
             <h3>Presenting</h3>
             <p><strong>Session ID:</strong> <span id="present-session-id">-</span></p>
             <p><a id="student-join-link" href="#" target="_blank">Student Join Link</a></p>
-            <p><em>Share this link or show a QR code.</em></p>
+            <div class="toolbar">
+              <button id="show-qr-btn" class="secondary">Show QR</button>
+              <button id="begin-presentation-btn">Begin</button>
+            </div>
+          </div>
 
-            <div class="split">
-              <div>
-                <h3>Compose Question</h3>
-                <label>Question Text</label>
-                <input id="q-text" type="text" placeholder="Type the question" />
-                <label>Choices (one per line)</label>
-                <textarea id="q-choices" rows="5" placeholder="A) ...\nB) ...\nC) ...\nD) ..."></textarea>
-                <button id="set-question-btn">Set Question</button>
+          <div id="presentation" class="presentation hidden">
+            <div class="pres-header">
+              <button id="pres-prev" class="secondary">Prev</button>
+              <div class="pres-status">
+                <span id="pres-index">1</span>/<span id="pres-total">1</span>
+                &nbsp;|&nbsp; Students: <span id="sum-students">0</span>
               </div>
-              <div>
-                <h3>Live Summary</h3>
-                <p>Students connected: <strong id="sum-students">0</strong></p>
-                <ul id="sum-answers" class="answers"></ul>
-                <button id="reveal-btn">Reveal Tally</button>
+              <button id="pres-next" class="secondary">Next</button>
+            </div>
+            <div class="pres-body">
+              <h2 id="pres-question">Question</h2>
+              <div id="pres-choices" class="pres-choices"></div>
+              <div class="toolbar">
+                <button id="reveal-btn" class="secondary">Reveal Tally</button>
               </div>
+              <ul id="sum-answers" class="answers"></ul>
             </div>
           </div>
         </div>
@@ -84,6 +102,16 @@
   <footer>
     <p>Part of the rapidresponder suite.</p>
   </footer>
+
+  <!-- QR Modal -->
+  <div id="qr-modal" class="modal hidden">
+    <div class="modal-content">
+      <h3>Scan to Join</h3>
+      <div id="qr"></div>
+      <p><a id="qr-link" href="#" target="_blank"></a></p>
+      <button id="qr-close" class="secondary">Close</button>
+    </div>
+  </div>
 
   <script src="/client.js"></script>
 </body>
