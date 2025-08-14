@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>YouClicker</title>
+  <link rel="stylesheet" href="/styles.css" />
+</head>
+<body>
+  <header>
+    <h1>YouClicker</h1>
+    <p class="subtitle">Simple classroom clicker</p>
+  </header>
+
+  <main>
+    <section class="card">
+      <div class="tabs">
+        <button id="tab-teacher" class="tab active">Teacher</button>
+        <button id="tab-student" class="tab">Student</button>
+      </div>
+
+      <!-- Teacher View -->
+      <div id="teacher-view" class="view">
+        <div id="teacher-login" class="panel">
+          <h2>Teacher Login</h2>
+          <label>Access Code</label>
+          <input id="teacher-code" type="password" placeholder="Enter access code" />
+          <button id="teacher-login-btn">Login</button>
+          <p id="teacher-login-msg" class="msg"></p>
+        </div>
+
+        <div id="teacher-controls" class="panel hidden">
+          <h2>Create Session</h2>
+          <label>Session Name</label>
+          <input id="session-name" type="text" placeholder="e.g. Algebra Period 2" />
+          <button id="create-session-btn">Create Session</button>
+          <p id="session-info" class="msg"></p>
+
+          <div id="present-panel" class="hidden">
+            <h3>Presenting</h3>
+            <p><strong>Session ID:</strong> <span id="present-session-id">-</span></p>
+            <p><a id="student-join-link" href="#" target="_blank">Student Join Link</a></p>
+            <p><em>Share this link or show a QR code.</em></p>
+
+            <div class="split">
+              <div>
+                <h3>Compose Question</h3>
+                <label>Question Text</label>
+                <input id="q-text" type="text" placeholder="Type the question" />
+                <label>Choices (one per line)</label>
+                <textarea id="q-choices" rows="5" placeholder="A) ...\nB) ...\nC) ...\nD) ..."></textarea>
+                <button id="set-question-btn">Set Question</button>
+              </div>
+              <div>
+                <h3>Live Summary</h3>
+                <p>Students connected: <strong id="sum-students">0</strong></p>
+                <ul id="sum-answers" class="answers"></ul>
+                <button id="reveal-btn">Reveal Tally</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Student View -->
+      <div id="student-view" class="view hidden">
+        <div class="panel">
+          <h2>Join Session</h2>
+          <label>Session ID</label>
+          <input id="student-session-id" type="text" placeholder="Paste session ID" />
+          <button id="student-join-btn">Join</button>
+          <p id="student-id" class="msg"></p>
+        </div>
+
+        <div id="student-question" class="panel hidden">
+          <h2 id="sq-text">Waiting for question...</h2>
+          <div id="sq-choices" class="choices"></div>
+          <ul id="sq-tally" class="answers hidden"></ul>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <p>Part of the rapidresponder suite.</p>
+  </footer>
+
+  <script src="/client.js"></script>
+</body>
+</html>
