@@ -1,0 +1,16 @@
+{
+  "id": "97b5e7b1-188c-41d8-900b-662416fe43c5",
+  "name": "How to be a good medic",
+  "questions": [
+    {
+      "text": "Should you wear gloves",
+      "choices": [
+        "Yes",
+        "No",
+        "Never",
+        "Always"
+      ]
+    }
+  ],
+  "updatedAt": 1755197484362
+}
